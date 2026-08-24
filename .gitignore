@@ -1,3 +1,6 @@
+#data folders
 data/
-pyproject.toml
+
+#environnement folders and files
 .venv
+.env
