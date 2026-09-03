@@ -30,7 +30,7 @@ def get_ids(inscription: pd.DataFrame) -> pd.Index:
     has_cancel_date = inscriptions['date_annulation'].notna()
     abandon = inscriptions['resultat_final'] == 'Abandon'
 
-    temporal_impossibility = inscriptions['date_annulation'] < inscriptions['date_debut']
+    temporal_impossibility = has_cancel_date & (inscriptions['date_annulation'] < inscriptions['date_debut'])
     label_date_mismatch = (abandon & ~has_cancel_date) | (~abandon & has_cancel_date)
 
     exclude = temporal_impossibility | label_date_mismatch
@@ -77,7 +77,7 @@ def target(inscriptions: pd.DataFrame) -> pd.DataFrame:
     The target variable will be 1 for 'Abandon' and 0 for all other values.
     '''
     inscriptions = inscriptions.copy()
-    inscriptions['target'] = (inscriptions['resultat_final'] == 'Abandon').astype(int)
+    inscriptions['churn'] = (inscriptions['resultat_final'] == 'Abandon').astype(int)
     return inscriptions
 
 def main():
@@ -106,3 +106,6 @@ def main():
     clean_data.to_csv(processed_directory / "clean_data.csv", index=False)
     evaluations_filtered.to_csv(processed_directory / "evaluations_clean.csv", index=False)
     activites_virtuelles_filtered.to_csv(processed_directory / "activites_virtuelles_clean.csv", index=False)
+
+if __name__ == "__main__":
+    main()
