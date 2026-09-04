@@ -1,7 +1,9 @@
-#data folders
+# Data folders
 data/
 
-#environnement folders and files
+# Environnement folders and files
 .venv
 .env
-src/student_churn_prediction.egg-info/
+
+# Python cache folders
+src/__pycache__/
