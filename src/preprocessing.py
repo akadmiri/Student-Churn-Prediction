@@ -16,8 +16,7 @@ def get_ids(inscription: pd.DataFrame) -> pd.Index:
     Get the ids to exclude from the inscription table according the conclusion
      found in the inspection notebook.
            1. Temporal impossibility: date_annulation < date_debut.
-           2. Label/date mismatch: resultat_final == 'Abandon' with no
-           date_annulation, or resultat_final != 'Abandon' with a
+           2. Label/date mismatch: resultat_final != 'Abandon' with a
            date_annulation present.
     '''
     inscriptions = inscription.copy()
@@ -31,7 +30,7 @@ def get_ids(inscription: pd.DataFrame) -> pd.Index:
     abandon = inscriptions['resultat_final'] == 'Abandon'
 
     temporal_impossibility = has_cancel_date & (inscriptions['date_annulation'] < inscriptions['date_debut'])
-    label_date_mismatch = (abandon & ~has_cancel_date) | (~abandon & has_cancel_date)
+    label_date_mismatch = (~abandon & has_cancel_date)
 
     exclude = temporal_impossibility | label_date_mismatch
     excluded_ids = inscriptions.loc[exclude, 'id_inscription']
