@@ -4,3 +4,4 @@ data/
 #environnement folders and files
 .venv
 .env
+src/student_churn_prediction.egg-info/
