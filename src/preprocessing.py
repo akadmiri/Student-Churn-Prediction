@@ -1,10 +1,14 @@
 import pandas as pd
 from pathlib import Path
+from src.config import (
+    RAW_DATA,
+    PROCESSED_DATA,
+    CLEAN_INSCRIPTIONS,
+    CLEAN_EVALUATIONS,
+    CLEAN_ACTIVITES,
+)
 
-raw_directory = Path("data/raw")
-processed_directory = Path("data/processed")
-
-def load_tables(path: Path = raw_directory) -> dict[str, pd.DataFrame]:
+def load_tables(path: Path = RAW_DATA) -> dict[str, pd.DataFrame]:
     """Load all CSV files in the specified directory into a dictionary of DataFrames."""
     tables = {}
     for file in path.glob("*.csv"):
@@ -101,10 +105,10 @@ def main():
     clean_data = target(merged_data)
 
     # Save the processed data to the processed data directory
-    processed_directory.mkdir(parents=True, exist_ok=True)
-    clean_data.to_csv(processed_directory / "clean_data.csv", index=False)
-    evaluations_filtered.to_csv(processed_directory / "evaluations_clean.csv", index=False)
-    activites_virtuelles_filtered.to_csv(processed_directory / "activites_virtuelles_clean.csv", index=False)
+    PROCESSED_DATA.mkdir(parents=True, exist_ok=True)
+    clean_data.to_csv(CLEAN_INSCRIPTIONS, index=False)
+    evaluations_filtered.to_csv(CLEAN_EVALUATIONS, index=False)
+    activites_virtuelles_filtered.to_csv(CLEAN_ACTIVITES, index=False)
 
 if __name__ == "__main__":
     main()
