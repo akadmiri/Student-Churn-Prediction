@@ -7,3 +7,6 @@ data/
 
 # Python cache folders
 src/__pycache__/
+
+# Build artifacts
+*.egg-info/
