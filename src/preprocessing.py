@@ -1,6 +1,6 @@
 import pandas as pd
 from pathlib import Path
-from src.config import (
+from config import (
     RAW_DATA,
     PROCESSED_DATA,
     CLEAN_INSCRIPTIONS,
@@ -85,7 +85,7 @@ def target(inscriptions: pd.DataFrame) -> pd.DataFrame:
 
 def main():
     # Load all tables from the raw data directory
-    tables = load_tables(raw_directory)
+    tables = load_tables()
 
     # Exclude invalid inscriptions and related records
     inscriptions_filtered, evaluations_filtered, activites_virtuelles_filtered = exclude(
