@@ -41,6 +41,28 @@ def get_ids(inscription: pd.DataFrame) -> pd.Index:
     print(f"Excluding {len(excluded_ids)} inscriptions due to temporal impossibility or label/date mismatch.")
     return pd.Index(excluded_ids.unique())
 
+def get_evaluation_ids(evaluations: pd.DataFrame, inscriptions: pd.DataFrame) -> pd.Index:
+    '''
+    Identify evaluation ids with temporal anomalies relative to date_debut,
+    found in 02_observation_window.ipynb:
+          1. date_soumission < date_debut
+          2. date_echeance < date_debut
+    '''
+    evaluations = evaluations.copy()
+    evaluations['date_soumission'] = pd.to_datetime(evaluations['date_soumission'])
+    evaluations['date_echeance'] = pd.to_datetime(evaluations['date_echeance'])
+    
+    dates = inscriptions[['id_inscription', 'date_debut']].copy()
+    dates['date_debut'] = pd.to_datetime(dates['date_debut'])
+    merged = evaluations.merge(dates, on='id_inscription', how='left')
+
+    soumission_anomaly = merged['date_soumission'] < merged['date_debut']
+    echeance_anomaly = merged['date_echeance'] < merged['date_debut']
+    exclude = soumission_anomaly | echeance_anomaly
+    excluded_ids = merged.loc[exclude, 'id_evaluation']
+    print(f"Excluding {len(excluded_ids)} evaluations due to temporal anomalies.")
+    return pd.Index(excluded_ids.unique())
+
 def exclude(
     inscriptions: pd.DataFrame,
     evaluations: pd.DataFrame,
@@ -48,6 +70,7 @@ def exclude(
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     '''
     Exclude the inscriptions that are not valid according to the inspection notebook.
+    and the evaluations with temporal anomalies found in the observation window notebook.
     '''
     excluded_ids = get_ids(inscriptions)
 
@@ -56,6 +79,9 @@ def exclude(
     evaluations_filtered = evaluations[~evaluations['id_inscription'].isin(excluded_ids)]
     activites_virtuelles_filtered = activites_virtuelles[~activites_virtuelles['id_inscription'].isin(excluded_ids)]
 
+    # Exclude evaluations with temporal anomalies
+    evaluation_ids = get_evaluation_ids(evaluations_filtered, inscriptions_filtered)
+    evaluations_filtered = evaluations_filtered[~evaluations_filtered['id_evaluation'].isin(evaluation_ids)]
     return inscriptions_filtered, evaluations_filtered, activites_virtuelles_filtered
 
 def merge_tables(
