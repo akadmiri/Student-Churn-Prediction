@@ -20,5 +20,7 @@ CLEAN_INSCRIPTIONS = PROCESSED_DATA / "clean_data.csv"
 CLEAN_EVALUATIONS = PROCESSED_DATA / "evaluations_clean.csv"
 CLEAN_ACTIVITES = PROCESSED_DATA / "activites_virtuelles_clean.csv"
 
+FINAL_INSCRIPTIONS = PROCESSED_DATA / "final_inscriptions.csv"
+
 # Notebooks directory
 NOTEBOOKS = ROOT / "notebooks"
