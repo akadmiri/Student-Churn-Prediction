@@ -17,7 +17,7 @@ NUM: list[str] = [
     "avg_lateness_cum",
 ]
 CAT: list[str] = ["niveau_scolaire"]
-FEATURES: list[str] = ["checkpoint_day", *NUM, "active_days_diff", *CAT]
+FEATURES: list[str] = [*NUM, *CAT]
 TARGET: str = "target_next_30d"
 
 
@@ -55,21 +55,16 @@ def make_preprocessor(scale_numeric: bool = True) -> ColumnTransformer:
     if scale_numeric:
         numeric_steps.append(("scale", StandardScaler()))
 
-    activity_diff_steps = [("impute", SimpleImputer(strategy="constant", fill_value=0))]
-    if scale_numeric:
-        activity_diff_steps.append(("scale", StandardScaler()))
-
     return ColumnTransformer(
-        transformers=[
-            ("num", Pipeline(numeric_steps), ["checkpoint_day", *NUM]),
-            ("diff", Pipeline(activity_diff_steps), ["active_days_diff"]),
-            (
-                "cat",
-                Pipeline([
-                    ("impute", SimpleImputer(strategy="most_frequent")),
-                    ("onehot", OneHotEncoder(handle_unknown="ignore")),
-                ]),
-                CAT,
-            ),
-        ]
-    )
+    transformers=[
+        ("num", Pipeline(numeric_steps), NUM),
+        (
+            "cat",
+            Pipeline([
+                ("impute", SimpleImputer(strategy="most_frequent")),
+                ("onehot", OneHotEncoder(handle_unknown="ignore")),
+            ]),
+            CAT,
+        ),
+    ]
+)
