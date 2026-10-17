@@ -1,6 +1,6 @@
+from pathlib import Path
 import numpy as np
 import pandas as pd
-from pathlib import Path
 from config import (
     RAW_DATA,
     PROCESSED_DATA,
@@ -11,7 +11,7 @@ from config import (
 
 
 def load_tables(path: Path = RAW_DATA) -> dict[str, pd.DataFrame]:
-    """Load all CSV files in the specified directory with schema dtypes and dates."""
+    """Load all raw CSV files with explicit schema dtypes and parsed dates."""
     etudiants = pd.read_csv(
         path / "etudiants.csv",
         dtype={
@@ -76,17 +76,13 @@ def merge_tables(
     inscriptions: pd.DataFrame,
     etudiants: pd.DataFrame,
     programmes: pd.DataFrame,
-    activites_virtuelles: pd.DataFrame,
-    evaluations: pd.DataFrame,
 ) -> pd.DataFrame:
     """
-    Drop 'filiere', derive 'date_debut_programme' (T_0), merge inscriptions with
-    etudiants and programmes, and impute missing 'date_annulation' for 'Abandon'
-    using the student's last recorded activity/evaluation date.
+    Drop 'filiere', derive 'date_debut_programme' (T_0), and merge inscriptions
+    with etudiants and programmes.
     """
     programmes = programmes.drop(columns=["filiere"]).copy()
 
-    # Derive T_0: Sept 1 of first year for Semestre 1, Jan 1 of second year for Semestre 2
     annees = programmes["annee_scolaire"].astype(str).str.split("/", expand=True)
     programmes["date_debut_programme"] = pd.to_datetime(
         np.where(
@@ -98,37 +94,16 @@ def merge_tables(
 
     merged = inscriptions.merge(etudiants, on="id_etudiant", how="left")
     merged = merged.merge(programmes, on="id_programme", how="left")
-
-    # Impute missing date_annulation for Abandon using last interaction date
-    last_act = activites_virtuelles.groupby("id_inscription")["horodatage"].max()
-    last_eval = evaluations.groupby("id_inscription")["date_soumission"].max()
-    last_interaction = (
-        pd.concat([last_act, last_eval], axis=1)
-        .max(axis=1)
-        .rename("last_interaction")
-    )
-
-    merged = merged.merge(last_interaction, on="id_inscription", how="left")
-    missing_abandon_date = (merged["resultat_final"] == "Abandon") & (
-        merged["date_annulation"].isna()
-    )
-    print(
-        f"Imputing {missing_abandon_date.sum()} missing date_annulation for 'Abandon' with last interaction date."
-    )
-    merged.loc[missing_abandon_date, "date_annulation"] = merged.loc[
-        missing_abandon_date, "last_interaction"
-    ]
-    merged = merged.drop(columns=["last_interaction"])
-
     return merged
 
 
 def get_ids(inscriptions: pd.DataFrame) -> pd.Index:
     """
-    Get the ids to exclude from the merged inscriptions table:
-    1. Temporal impossibility / pre-start churn: date_annulation < date_debut
-       or date_annulation < date_debut_programme (T_0).
+    Get inscription IDs to exclude:
+    1. Pre-start churn or temporal impossibility: date_annulation < date_debut_programme
+       or date_annulation < date_debut.
     2. Label/date mismatch: resultat_final != 'Abandon' with a date_annulation present.
+    3. Unconfirmed event time: resultat_final == 'Abandon' with missing date_annulation.
     """
     has_cancel_date = inscriptions["date_annulation"].notna()
     abandon = inscriptions["resultat_final"] == "Abandon"
@@ -138,11 +113,15 @@ def get_ids(inscriptions: pd.DataFrame) -> pd.Index:
         | (inscriptions["date_annulation"] < inscriptions["date_debut_programme"])
     )
     label_date_mismatch = (~abandon) & has_cancel_date
+    missing_abandon_date = abandon & (~has_cancel_date)
 
-    exclude_mask = temporal_impossibility | label_date_mismatch
+    exclude_mask = temporal_impossibility | label_date_mismatch | missing_abandon_date
     excluded_ids = inscriptions.loc[exclude_mask, "id_inscription"]
     print(
-        f"Excluding {len(excluded_ids)} inscriptions due to temporal impossibility or label/date mismatch."
+        f"Excluding {len(excluded_ids)} inscriptions "
+        f"(pre-start/impossible: {temporal_impossibility.sum()}, "
+        f"label mismatch: {label_date_mismatch.sum()}, "
+        f"unconfirmed abandon date: {missing_abandon_date.sum()})."
     )
     return pd.Index(excluded_ids.unique())
 
@@ -151,7 +130,7 @@ def get_evaluation_ids(
     evaluations: pd.DataFrame, inscriptions: pd.DataFrame
 ) -> pd.Index:
     """
-    Identify evaluation ids with temporal anomalies relative to date_debut:
+    Identify evaluation IDs with temporal anomalies relative to date_debut:
     1. date_soumission < date_debut
     2. date_echeance < date_debut
     """
@@ -162,9 +141,7 @@ def get_evaluation_ids(
     echeance_anomaly = merged["date_echeance"] < merged["date_debut"]
     exclude_mask = soumission_anomaly | echeance_anomaly
     excluded_ids = merged.loc[exclude_mask, "id_evaluation"]
-    print(
-        f"Excluding {len(excluded_ids)} evaluations due to temporal anomalies."
-    )
+    print(f"Excluding {len(excluded_ids)} evaluations due to temporal anomalies.")
     return pd.Index(excluded_ids.unique())
 
 
@@ -173,9 +150,7 @@ def exclude(
     evaluations: pd.DataFrame,
     activites_virtuelles: pd.DataFrame,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """
-    Exclude invalid inscriptions across all tables and remove anomalous evaluations.
-    """
+    """Exclude invalid inscriptions across all tables and remove anomalous evaluations."""
     excluded_ids = get_ids(inscriptions)
 
     inscriptions_filtered = inscriptions[
@@ -188,9 +163,7 @@ def exclude(
         ~activites_virtuelles["id_inscription"].isin(excluded_ids)
     ].copy()
 
-    evaluation_ids = get_evaluation_ids(
-        evaluations_filtered, inscriptions_filtered
-    )
+    evaluation_ids = get_evaluation_ids(evaluations_filtered, inscriptions_filtered)
     evaluations_filtered = evaluations_filtered[
         ~evaluations_filtered["id_evaluation"].isin(evaluation_ids)
     ].copy()
@@ -203,9 +176,7 @@ def exclude(
 
 
 def target(inscriptions: pd.DataFrame) -> pd.DataFrame:
-    """
-    Create binary target 'churn': 1 for 'Abandon' and 0 for all other values.
-    """
+    """Create enrollment-level binary indicator 'churn' (1 = Abandon, 0 = Persisted)."""
     inscriptions = inscriptions.copy()
     inscriptions["churn"] = (
         inscriptions["resultat_final"] == "Abandon"
@@ -220,8 +191,6 @@ def main() -> None:
         tables["inscriptions"],
         tables["etudiants"],
         tables["programmes"],
-        tables["activites_virtuelles"],
-        tables["evaluations"],
     )
 
     inscriptions_filtered, evaluations_filtered, activites_virtuelles_filtered = (
