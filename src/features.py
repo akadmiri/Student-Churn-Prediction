@@ -1,8 +1,15 @@
-"""Build a J30/J60/J90 panel for prospective 30-day abandonment prediction."""
+"""Build the exploratory J30/J60/J90 panel and its next-30-day target.
+
+The J30 experiment partitions these rows by student, then applies enrollment
+eligibility and computes assessment missingness in ``src.preprocessing.prepare``.
+"""
 
 import numpy as np
 import pandas as pd
-from config import CLEAN_ACTIVITES, CLEAN_EVALUATIONS, CLEAN_INSCRIPTIONS, PROCESSED_DATA
+from .config import (
+    CLEAN_ACTIVITES, CLEAN_EVALUATIONS, CLEAN_INSCRIPTIONS, PROCESSED_DATA,
+    LONGITUDINAL_PANEL, MODEL_FEATURES,
+)
 
 CHECKPOINTS: tuple[int, ...] = (30, 60, 90)
 HORIZON: int = 30
@@ -24,7 +31,12 @@ def build_longitudinal_features(
     checkpoints: tuple[int, ...] = CHECKPOINTS,
     horizon: int = HORIZON,
 ) -> pd.DataFrame:
-    """Build checkpoint features using only records dated by the prediction cutoff."""
+    """Build checkpoint rows in enrollment order with a next-30-day target.
+
+    Activity history starts at J0; recent counts use (t-30, t]. Assessment
+    history includes pre-programme submissions. The exploratory panel encodes
+    missing means as zero; J30 modeling instead uses NaNs and missingness flags.
+    """
     ins = inscriptions.copy()
     ins["date_debut_programme"] = pd.to_datetime(ins["date_debut_programme"])
     ins["date_annulation"] = pd.to_datetime(ins["date_annulation"])
@@ -104,8 +116,8 @@ def main() -> None:
 
     panel = build_longitudinal_features(inscriptions, activities, evaluations)
     PROCESSED_DATA.mkdir(parents=True, exist_ok=True)
-    panel.to_parquet(PROCESSED_DATA / "longitudinal_panel.parquet", index=False)
-    panel[FEATURES].to_parquet(PROCESSED_DATA / "model_features.parquet", index=False)
+    panel.to_parquet(LONGITUDINAL_PANEL, index=False)
+    panel[FEATURES].to_parquet(MODEL_FEATURES, index=False)
     print(f"Panel: {panel.shape} | positive prevalence: {panel['target_next_30d'].mean():.4%}")
 
 

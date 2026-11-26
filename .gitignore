@@ -1,15 +1,35 @@
-# Data folders
+# Confidential data and local outputs
 data/
-
-# Environnement folders and files
-.venv
-.env
-
-# Python cache folders
-src/__pycache__/
-
-# Build artifacts
-*.egg-info/
-
-#output folders
 output/
+outputs/
+predictions/
+models/
+artifacts/
+*.parquet
+*.csv
+*.pkl
+*.pickle
+*.joblib
+*.onnx
+*.npy
+*.npz
+
+# Local verification files
+/tests/
+
+# Local environment and credentials
+.venv/
+.env
+.env.*
+!.env.example
+.aws/
+
+# Python and notebook caches
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/

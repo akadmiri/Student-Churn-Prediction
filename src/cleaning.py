@@ -1,7 +1,9 @@
+"""Load explicit CSV schemas and apply the established cleaning rules."""
+
 from pathlib import Path
 import numpy as np
 import pandas as pd
-from config import (
+from .config import (
     RAW_DATA,
     PROCESSED_DATA,
     CLEAN_INSCRIPTIONS,
